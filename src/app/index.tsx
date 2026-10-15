@@ -1,98 +1,81 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useRef, useState } from "react";
+import { useAudioPlayer } from "expo-audio";
+import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text } from "react-native";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+type Pokemon = { name: string; url: string };
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+const sprite = (url: string) =>
+  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${url.split("/").filter(Boolean).pop()}.png`;
+
+const id = (url: string) => url.split("/").filter(Boolean).pop();
+const cry = (url: string) =>
+  `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id(url)}.ogg`;
+
+export default function Index() {
+  const player = useAudioPlayer(null); // un solo reproductor, se reemplaza la fuente al tocar
+  const playCry = (url: string) => {
+    player.replace({ uri: cry(url) });
+    player.play();
+  };
+  const [pokemons, setPokemons] = useState<Pokemon[]>([]);
+  const [next, setNext] = useState<string | null>("https://pokeapi.co/api/v2/pokemon?limit=30");
+  const [loading, setLoading] = useState(false);
+  const busy = useRef(false); // evita cargas duplicadas antes de que loading se actualice
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    if (!next || busy.current) return;
+    busy.current = true;
+    setLoading(true);
+    try {
+      const res = await fetch(next);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setPokemons((prev) => [...prev, ...data.results]);
+      setNext(data.next);
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+    <FlatList
+      data={pokemons}
+      keyExtractor={(p) => p.name}
+      contentContainerStyle={styles.list}
+      onEndReached={load}
+      onEndReachedThreshold={0.5}
+      renderItem={({ item }) => (
+        <Pressable style={styles.row} onPress={() => playCry(item.url)}>
+          <Image source={{ uri: sprite(item.url) }} style={styles.img} />
+          <Text style={styles.name}>{item.name}</Text>
+        </Pressable>
+      )}
+      ListFooterComponent={
+        loading ? (
+          <ActivityIndicator style={styles.footer} />
+        ) : error ? (
+          <Text style={styles.footer}>{error}</Text>
+        ) : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  list: { padding: 16 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 },
+  img: { width: 64, height: 64 },
+  name: { fontSize: 18, textTransform: "capitalize" },
+  footer: { padding: 16, textAlign: "center" },
 });
