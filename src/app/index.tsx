@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAudioPlayer } from "expo-audio";
+import { router } from "expo-router";
 import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text } from "react-native";
 
 type Pokemon = { name: string; url: string };
@@ -56,7 +57,10 @@ export default function Index() {
       onEndReached={load}
       onEndReachedThreshold={0.5}
       renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => playCry(item.url)}>
+        <Pressable style={styles.row} onPress={() => {
+            playCry(item.url);
+            router.push(`/pokemon/${item.name}`);
+          }}>
           <Image source={{ uri: sprite(item.url) }} style={styles.img} />
           <Text style={styles.name}>{item.name}</Text>
         </Pressable>
