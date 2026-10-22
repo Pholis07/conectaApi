@@ -5,8 +5,9 @@ import * as Haptics from "expo-haptics";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "../../components/Button";
+import { TypeChip } from "../../components/TypeChip";
 import { fetchPokemon, get, type Pokemon } from "../../lib/pokeapi";
-import { num, onColor, pretty, radius, TYPE_COLORS, TYPE_ES, useTheme } from "../../theme";
+import { num, pretty, radius, TYPE_COLORS, useTheme } from "../../theme";
 
 const STAT_LABELS: Record<string, string> = {
   hp: "PS", attack: "Ataque", defense: "Defensa",
@@ -61,14 +62,7 @@ export default function PokemonDetail() {
             </View>
 
             <View style={styles.chips}>
-              {data.p.types.map((ty) => {
-                const bg = TYPE_COLORS[ty] ?? t.sub;
-                return (
-                  <Text key={ty} style={[styles.chip, { backgroundColor: bg, color: onColor(bg) }]}>
-                    {TYPE_ES[ty] ?? ty}
-                  </Text>
-                );
-              })}
+              {data.p.types.map((ty) => <TypeChip key={ty} type={ty} />)}
             </View>
 
             <Text style={[styles.desc, { color: t.text }]}>{data.description}</Text>
@@ -111,10 +105,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 32, fontWeight: "700", textTransform: "capitalize", letterSpacing: -0.5 },
   num: { fontSize: 17, fontVariant: ["tabular-nums"] },
   chips: { flexDirection: "row", gap: 8 },
-  chip: {
-    fontSize: 14, fontWeight: "600", paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: radius.chip, overflow: "hidden",
-  },
   desc: { fontSize: 17, lineHeight: 24, maxWidth: 560 },
   stats: { borderRadius: radius.card, padding: 16, gap: 12 },
   section: { fontSize: 17, fontWeight: "600" },
