@@ -1,60 +1,37 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
-
-type Detail = {
-  id: number;
-  artwork: string;
-  types: string[];
-  stats: { name: string; value: number }[];
-  description: string;
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  normal: "#A8A77A", fire: "#EE8130", water: "#6390F0", electric: "#F7D02C",
-  grass: "#7AC74C", ice: "#96D9D6", fighting: "#C22E28", poison: "#A33EA1",
-  ground: "#E2BF65", flying: "#A98FF3", psychic: "#F95587", bug: "#A6B91A",
-  rock: "#B6A136", ghost: "#735797", dragon: "#6F35FC", dark: "#705746",
-  steel: "#B7B7CE", fairy: "#D685AD",
-};
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { Button } from "../../components/Button";
+import { fetchPokemon, get, type Pokemon } from "../../lib/pokeapi";
+import { num, onColor, pretty, radius, TYPE_COLORS, TYPE_ES, useTheme } from "../../theme";
 
 const STAT_LABELS: Record<string, string> = {
-  hp: "HP", attack: "Ataque", defense: "Defensa",
+  hp: "PS", attack: "Ataque", defense: "Defensa",
   "special-attack": "At. esp.", "special-defense": "Def. esp.", speed: "Velocidad",
 };
 
 const MAX_STAT = 255; // tope teórico de un stat base
 
-const get = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-};
-
 export default function PokemonDetail() {
+  const t = useTheme();
   const { name } = useLocalSearchParams<{ name: string }>();
-  const [data, setData] = useState<Detail | null>(null);
+  const [data, setData] = useState<{ p: Pokemon; description: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [p, s] = await Promise.all([
-          get(`https://pokeapi.co/api/v2/pokemon/${name}`),
-          get(`https://pokeapi.co/api/v2/pokemon-species/${name}`),
-        ]);
+        const p = await fetchPokemon(name);
+        const s = await get(p.speciesUrl); // las formas (deoxys-normal...) no existen como species por nombre
         const entry = s.flavor_text_entries.find((e: any) => e.language.name === "es");
         if (cancelled) return;
-        setData({
-          id: p.id,
-          artwork: p.sprites.other["official-artwork"].front_default ?? p.sprites.front_default,
-          types: p.types.map((t: any) => t.type.name),
-          stats: p.stats.map((st: any) => ({ name: st.stat.name, value: st.base_stat })),
-          description: entry ? entry.flavor_text.replace(/[\n\f]/g, " ") : "Sin descripción en español.",
-        });
-      } catch (e) {
-        if (!cancelled) setError(String(e));
+        setData({ p, description: entry ? entry.flavor_text.replace(/[\n\f]/g, " ") : "Sin descripción en español." });
+      } catch {
+        if (!cancelled) setError("No se pudo cargar este Pokémon. Revisa tu conexión.");
       }
     })();
     return () => {
@@ -62,42 +39,61 @@ export default function PokemonDetail() {
     };
   }, [name]);
 
+  const accent = data ? (TYPE_COLORS[data.p.types[0]] ?? t.tint) : t.tint;
+
   return (
     <>
-      <Stack.Screen options={{ title: name }} />
+      <Stack.Screen options={{ title: pretty(name) }} />
       {!data ? (
-        <View style={styles.center}>{error ? <Text>{error}</Text> : <ActivityIndicator size="large" />}</View>
+        <View style={styles.center}>
+          {error ? <Text style={[styles.error, { color: t.sub }]}>{error}</Text> : <ActivityIndicator size="large" color={t.tint} />}
+        </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          <Image source={{ uri: data.artwork }} style={styles.artwork} resizeMode="contain" />
-          <Text style={styles.name}>
-            {name} <Text style={styles.num}>#{data.id}</Text>
-          </Text>
-          <View style={styles.chips}>
-            {data.types.map((t) => (
-              <Text key={t} style={[styles.chip, { backgroundColor: TYPE_COLORS[t] ?? "#777" }]}>
-                {t}
-              </Text>
-            ))}
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+          <View style={[styles.hero, { backgroundColor: `${accent}${t.wash}` }]}>
+            <Image source={{ uri: data.p.artwork }} style={styles.artwork} contentFit="contain" />
           </View>
-          <Text style={styles.desc}>{data.description}</Text>
-          {data.stats.map((s) => (
-            <View key={s.name} style={styles.statRow}>
-              <Text style={styles.statLabel}>{STAT_LABELS[s.name] ?? s.name}</Text>
-              <Text style={styles.statValue}>{s.value}</Text>
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.bar,
-                    {
-                      width: `${(s.value / MAX_STAT) * 100}%`,
-                      backgroundColor: TYPE_COLORS[data.types[0]] ?? "#777",
-                    },
-                  ]}
-                />
-              </View>
+
+          <View style={styles.body}>
+            <View style={styles.titleRow}>
+              <Text style={[styles.name, { color: t.text }]}>{pretty(name)}</Text>
+              <Text style={[styles.num, { color: t.sub }]}>{num(data.p.id)}</Text>
             </View>
-          ))}
+
+            <View style={styles.chips}>
+              {data.p.types.map((ty) => {
+                const bg = TYPE_COLORS[ty] ?? t.sub;
+                return (
+                  <Text key={ty} style={[styles.chip, { backgroundColor: bg, color: onColor(bg) }]}>
+                    {TYPE_ES[ty] ?? ty}
+                  </Text>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.desc, { color: t.text }]}>{data.description}</Text>
+
+            <Button
+              title="Combatir"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/batalla/${name}`);
+              }}
+            />
+
+            <View style={[styles.stats, { backgroundColor: t.card }]}>
+              <Text style={[styles.section, { color: t.text }]}>Estadísticas base</Text>
+              {Object.entries(data.p.stats).map(([stat, value], i) => (
+                <Animated.View key={stat} entering={FadeInDown.delay(i * 50)} style={styles.statRow}>
+                  <Text style={[styles.statLabel, { color: t.sub }]}>{STAT_LABELS[stat] ?? stat}</Text>
+                  <Text style={[styles.statValue, { color: t.text }]}>{value}</Text>
+                  <View style={[styles.track, { backgroundColor: t.track }]}>
+                    <View style={[styles.bar, { width: `${(value / MAX_STAT) * 100}%`, backgroundColor: accent }]} />
+                  </View>
+                </Animated.View>
+              ))}
+            </View>
+          </View>
         </ScrollView>
       )}
     </>
@@ -105,20 +101,26 @@ export default function PokemonDetail() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { padding: 16, alignItems: "center", gap: 12 },
-  artwork: { width: 240, height: 240 },
-  name: { fontSize: 28, fontWeight: "bold", textTransform: "capitalize" },
-  num: { fontSize: 18, color: "#888", fontWeight: "normal" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  error: { fontSize: 16, textAlign: "center" },
+  content: { paddingBottom: 32 },
+  hero: { alignItems: "center", paddingVertical: 16, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
+  artwork: { width: 260, height: 260 },
+  body: { padding: 20, gap: 16 },
+  titleRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  name: { fontSize: 32, fontWeight: "700", textTransform: "capitalize", letterSpacing: -0.5 },
+  num: { fontSize: 17, fontVariant: ["tabular-nums"] },
   chips: { flexDirection: "row", gap: 8 },
   chip: {
-    color: "#fff", fontWeight: "bold", textTransform: "capitalize",
-    paddingHorizontal: 14, paddingVertical: 4, borderRadius: 14, overflow: "hidden",
+    fontSize: 14, fontWeight: "600", paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: radius.chip, overflow: "hidden",
   },
-  desc: { fontSize: 16, textAlign: "center", marginVertical: 8 },
-  statRow: { flexDirection: "row", alignItems: "center", gap: 8, width: "100%" },
-  statLabel: { width: 90, fontWeight: "600" },
-  statValue: { width: 36, textAlign: "right" },
-  track: { flex: 1, height: 10, borderRadius: 5, backgroundColor: "#e5e5e5", overflow: "hidden" },
-  bar: { height: "100%", borderRadius: 5 },
+  desc: { fontSize: 17, lineHeight: 24, maxWidth: 560 },
+  stats: { borderRadius: radius.card, padding: 16, gap: 12 },
+  section: { fontSize: 17, fontWeight: "600" },
+  statRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  statLabel: { width: 84, fontSize: 15 },
+  statValue: { width: 36, fontSize: 15, fontWeight: "600", textAlign: "right", fontVariant: ["tabular-nums"] },
+  track: { flex: 1, height: 8, borderRadius: 4, overflow: "hidden" },
+  bar: { height: "100%", borderRadius: 4 },
 });

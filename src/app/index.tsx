@@ -1,85 +1,140 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAudioPlayer } from "expo-audio";
-import { router } from "expo-router";
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text } from "react-native";
+import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
+import { router, Stack } from "expo-router";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Button } from "../components/Button";
+import { API, get, idOf } from "../lib/pokeapi";
+import { num, pretty, radius, useTheme } from "../theme";
 
-type Pokemon = { name: string; url: string };
+type Entry = { name: string; url: string };
+
+const COUNT = 1025; // Pokédex nacional; después de esa id solo hay formas alternativas (megas, regionales...)
 
 const sprite = (url: string) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${url.split("/").filter(Boolean).pop()}.png`;
+  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${idOf(url)}.png`;
 
-const id = (url: string) => url.split("/").filter(Boolean).pop();
 const cry = (url: string) =>
-  `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id(url)}.ogg`;
+  `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${idOf(url)}.ogg`;
+
+const GAP = 8;
+const ROW = 72 + GAP; // alto fijo de fila: permite getItemLayout
 
 export default function Index() {
+  const t = useTheme();
   const player = useAudioPlayer(null); // un solo reproductor, se reemplaza la fuente al tocar
   const playCry = (url: string) => {
     player.replace({ uri: cry(url) });
     player.play();
   };
-  const [pokemons, setPokemons] = useState<Pokemon[]>([]);
-  const [next, setNext] = useState<string | null>("https://pokeapi.co/api/v2/pokemon?limit=30");
-  const [loading, setLoading] = useState(false);
-  const busy = useRef(false); // evita cargas duplicadas antes de que loading se actualice
-  const [error, setError] = useState<string | null>(null);
+  const [all, setAll] = useState<Entry[] | null>(null);
+  const [error, setError] = useState(false);
+  const [query, setQuery] = useState("");
 
-  const load = async () => {
-    if (!next || busy.current) return;
-    busy.current = true;
-    setLoading(true);
-    try {
-      const res = await fetch(next);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setPokemons((prev) => [...prev, ...data.results]);
-      setNext(data.next);
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      busy.current = false;
-      setLoading(false);
-    }
+  const load = () => {
+    setError(false);
+    get(`${API}/pokemon?limit=${COUNT}`).then((d) => setAll(d.results), () => setError(true));
   };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const q = query.trim().toLowerCase();
+  const data = all && q ? all.filter((p) => pretty(p.name).includes(q) || num(idOf(p.url)).includes(q)) : all;
+
   return (
-    <FlatList
-      data={pokemons}
-      keyExtractor={(p) => p.name}
-      contentContainerStyle={styles.list}
-      onEndReached={load}
-      onEndReachedThreshold={0.5}
-      renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => {
-            playCry(item.url);
-            router.push(`/pokemon/${item.name}`);
-          }}>
-          <Image source={{ uri: sprite(item.url) }} style={styles.img} />
-          <Text style={styles.name}>{item.name}</Text>
-        </Pressable>
+    <>
+      <Stack.Screen
+        options={{
+          title: "Pokédex",
+          headerLargeTitle: true,
+          headerLargeTitleShadowVisible: false,
+          headerLargeStyle: { backgroundColor: t.bg },
+          headerSearchBarOptions: {
+            placeholder: "Buscar por nombre o número",
+            autoCapitalize: "none",
+            onChangeText: (e) => setQuery(e.nativeEvent.text),
+          },
+          headerRight: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abrir cámara"
+              hitSlop={8}
+              style={styles.iconBtn}
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push("/camara");
+              }}
+            >
+              <Ionicons name="camera-outline" size={26} color={t.tint} />
+            </Pressable>
+          ),
+        }}
+      />
+      {!data ? (
+        <View style={styles.center}>
+          {error ? (
+            <>
+              <Text style={[styles.msg, { color: t.sub }]}>No se pudo cargar la Pokédex. Revisa tu conexión.</Text>
+              <Button title="Reintentar" onPress={load} />
+            </>
+          ) : (
+            <ActivityIndicator size="large" color={t.tint} />
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={(p) => p.name}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.list}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
+          ListEmptyComponent={<Text style={[styles.msg, { color: t.sub }]}>Sin resultados para “{query}”.</Text>}
+          renderItem={({ item }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${pretty(item.name)}, ${num(idOf(item.url))}`}
+              android_ripple={{ color: t.line }}
+              style={({ pressed }) => [styles.row, { backgroundColor: t.card }, pressed && styles.pressed]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                playCry(item.url);
+                router.push(`/pokemon/${item.name}`);
+              }}
+            >
+              <View style={[styles.disc, { backgroundColor: t.bg }]}>
+                <Image source={{ uri: sprite(item.url) }} style={styles.img} recyclingKey={item.name} />
+              </View>
+              <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>
+                {pretty(item.name)}
+              </Text>
+              <Text style={[styles.num, { color: t.sub }]}>{num(idOf(item.url))}</Text>
+            </Pressable>
+          )}
+        />
       )}
-      ListFooterComponent={
-        loading ? (
-          <ActivityIndicator style={styles.footer} />
-        ) : error ? (
-          <Text style={styles.footer}>{error}</Text>
-        ) : null
-      }
-    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 16 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 },
-  img: { width: 64, height: 64 },
-  name: { fontSize: 18, textTransform: "capitalize" },
-  footer: { padding: 16, textAlign: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 16 },
+  msg: { fontSize: 16, textAlign: "center", padding: 16 },
+  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  row: {
+    height: ROW - GAP, marginBottom: GAP, borderRadius: radius.row, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8,
+  },
+  pressed: { opacity: 0.6 },
+  disc: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
+  img: { width: 56, height: 56 },
+  name: { flex: 1, fontSize: 17, fontWeight: "600", textTransform: "capitalize" },
+  num: { fontSize: 15, fontVariant: ["tabular-nums"], paddingRight: 8 },
+  iconBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });
