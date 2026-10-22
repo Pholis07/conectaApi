@@ -1,12 +1,12 @@
 import { useColorScheme } from "react-native";
 
 const light = {
-  bg: "#F5F5F7", card: "#FFFFFF", text: "#111318", sub: "#6B7080", line: "#E4E5EA",
-  tint: "#2B59FF", onTint: "#FFFFFF", track: "#E4E5EA", wash: "2E",
+  bg: "#EEF1FF", card: "#FFFFFF", text: "#10122B", sub: "#555B7D", line: "#D4D9F5",
+  tint: "#4F46FF", onTint: "#FFFFFF", track: "#D4D9F5", wash: "59", rowWash: "24",
 };
 const dark = {
-  bg: "#0E0F12", card: "#1A1C21", text: "#F2F3F5", sub: "#9A9FAD", line: "#2A2D34",
-  tint: "#7A9BFF", onTint: "#0E0F12", track: "#2A2D34", wash: "47",
+  bg: "#0B0D1A", card: "#171A2E", text: "#F1F2FF", sub: "#A3A9C9", line: "#2A2F4D",
+  tint: "#8C94FF", onTint: "#0B0D1A", track: "#2A2F4D", wash: "73", rowWash: "38",
 };
 
 export const useTheme = () => (useColorScheme() === "dark" ? dark : light);
@@ -35,7 +35,7 @@ export const onColor = (hex: string) => {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#111318" : "#FFFFFF";
 };
 
-export const pretty = (name: string) => name.replace(/-/g, " ");
+export const pretty = (name: string) => name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 export const num = (id: number | string) => `#${String(id).padStart(3, "0")}`;
 
 export const hpColor = (ratio: number) => (ratio > 0.5 ? "#34C759" : ratio > 0.2 ? "#FF9F0A" : "#FF453A");

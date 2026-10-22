@@ -1,9 +1,9 @@
 import type { Pokemon } from "./pokeapi";
 
-export type Fighter = { name: string; front: string; back: string; hp: number; attack: number; defense: number };
+export type Fighter = { name: string; type: string; front: string; back: string; hp: number; attack: number; defense: number };
 
 export const toFighter = (p: Pokemon): Fighter => ({
-  name: p.name, front: p.front, back: p.back,
+  name: p.name, type: p.types[0], front: p.front, back: p.back,
   hp: p.stats.hp, attack: p.stats.attack, defense: p.stats.defense,
 });
 

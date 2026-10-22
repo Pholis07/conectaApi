@@ -90,8 +90,9 @@ export default function Index() {
           keyboardShouldPersistTaps="handled"
           getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
           ListEmptyComponent={<Text style={[styles.msg, { color: t.sub }]}>Sin resultados para “{query}”.</Text>}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <PokemonRow
+              index={index}
               name={item.name}
               url={item.url}
               onPress={() => {
