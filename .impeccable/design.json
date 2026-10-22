@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-22T00:00:00Z",
-  "title": "Design System: conectaApi Pokédex",
+  "title": "Design System: Pokeconnect Pokédex",
   "extensions": {
     "colorMeta": {
       "tint": { "role": "primary", "displayName": "Cobalt Action", "canonical": "#2B59FF", "tonalRamp": ["#0B1F66", "#102E94", "#1A41C7", "#2B59FF", "#5479FF", "#7A9BFF", "#B0C3FF", "#E3EAFF"] },

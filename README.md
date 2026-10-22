@@ -1,4 +1,4 @@
-# conectaApi
+# Pokeconnect
 
 App móvil hecha con [Expo](https://expo.dev) y Expo Router que consume la [PokeAPI](https://pokeapi.co): muestra una lista paginada de Pokémon y reproduce su grito al tocar cada fila.
 

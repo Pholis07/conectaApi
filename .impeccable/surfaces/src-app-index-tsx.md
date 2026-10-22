@@ -5,7 +5,7 @@ primary_target: "src/app/index.tsx"
 related_targets: ["src/app/pokemon"]
 ---
 
-# Surface brief: conectaApi (todas las pantallas)
+# Surface brief: Pokeconnect (todas las pantallas)
 
 Mode: Operate. Platform: adaptive (iOS + Android), Expo Go. Brief pinned by the user: moderna y limpia, rediseño completo, todo en español.
 

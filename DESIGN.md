@@ -1,5 +1,5 @@
 ---
-name: conectaApi Pokédex
+name: Pokeconnect Pokédex
 description: A quiet neutral canvas where each Pokémon's type supplies the only expressive color, with one cobalt tint for actions.
 colors:
   tint: "#2B59FF"
@@ -102,7 +102,7 @@ components:
     padding: "16px"
 ---
 
-# Design System: conectaApi Pokédex
+# Design System: Pokeconnect Pokédex
 
 ## Overview
 

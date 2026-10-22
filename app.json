@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "conectaApi",
-    "slug": "conectaApi",
+    "name": "Pokeconnect",
+    "slug": "pokeconnect",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "conectaapi",
+    "scheme": "pokeconnect",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -38,7 +38,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permite usar la cámara en conectaApi.",
+          "cameraPermission": "Permite usar la cámara en Pokeconnect.",
           "recordAudioAndroid": false
         }
       ]
